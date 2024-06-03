@@ -10,7 +10,7 @@ from .model import unwrap_model
 
 def reduce_tensor(tensor, n):
     rt = tensor.clone()
-    dist.all_reduce(rt, op=dist.ReduceOp.SUM)
+    dist.all_reduce(rt, op=dist.ReduceOp.SUM) #可以帮助计算不同进程的同一组张量对应的均值
     rt /= n
     return rt
 

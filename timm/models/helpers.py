@@ -73,6 +73,7 @@ def load_checkpoint(model, checkpoint_path, use_ema=True, strict=True):
         return
     state_dict = load_state_dict(checkpoint_path, use_ema)
     incompatible_keys = model.load_state_dict(state_dict, strict=strict)
+    # incompatible_keys = model.load_state_dict({k.replace('classifier.',''):v for k,v in state_dict['state_dict'].items()}, strict=strict)
     return incompatible_keys
 
 
@@ -104,7 +105,7 @@ def resume_checkpoint(model, checkpoint_path, optimizer=None, loss_scaler=None, 
             if log_info:
                 _logger.info("Loaded checkpoint '{}' (epoch {})".format(checkpoint_path, checkpoint['epoch']))
         else:
-            model.load_state_dict(checkpoint)
+            model.load_state_dict(checkpoint,strict=False)
             if log_info:
                 _logger.info("Loaded checkpoint '{}'".format(checkpoint_path))
         return resume_epoch
@@ -293,7 +294,10 @@ def load_pretrained(
                 classifier_bias = state_dict[classifier_name + '.bias']
                 state_dict[classifier_name + '.bias'] = classifier_bias[label_offset:]
 
-    model.load_state_dict(state_dict, strict=strict)
+    model.load_state_dict(state_dict, strict=False)
+    # for k,v in state_dict.items():
+    #     print({'k':k})
+    # model.load_state_dict({k.replace('classifier.',''):v for k,v in state_dict['state_dict'].items()}, strict=strict)
 
 
 def extract_layer(model, layer):
@@ -549,7 +553,8 @@ def build_model_with_cfg(
                 in_chans=kwargs.get('in_chans', 3),
                 filter_fn=pretrained_filter_fn,
                 strict=pretrained_strict)
-
+    # from torchsummary import summary
+    # summary(model.cuda(), (3,128,128))
     # Wrap the model in a feature extraction module if enabled
     if features:
         feature_cls = FeatureListNet

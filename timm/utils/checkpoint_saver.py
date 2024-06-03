@@ -54,17 +54,21 @@ class CheckpointSaver:
         self.save_prefix = checkpoint_prefix
         self.recovery_prefix = recovery_prefix
         self.extension = '.pth.tar'
+        self.save_pth = '.pth'
         self.decreasing = decreasing  # a lower metric is better if True
         self.cmp = operator.lt if decreasing else operator.gt  # True if lhs better than rhs
         self.max_history = max_history
         self.unwrap_fn = unwrap_fn
         assert self.max_history >= 1
 
-    def save_checkpoint(self, epoch, metric=None):
+    def save_checkpoint(self, model,epoch, metric=None):
         assert epoch >= 0
-        tmp_save_path = os.path.join(self.checkpoint_dir, 'tmp' + self.extension)
-        last_save_path = os.path.join(self.checkpoint_dir, 'last' + self.extension)
-        self._save(tmp_save_path, epoch, metric)
+        # tmp_save_path = os.path.join(self.checkpoint_dir, 'tmp' + self.extension)
+        # last_save_path = os.path.join(self.checkpoint_dir, 'last' + self.extension)
+        tmp_save_path = os.path.join(self.checkpoint_dir, 'tmp' +  self.save_pth)
+        last_save_path = os.path.join(self.checkpoint_dir, 'last' +  self.save_pth)
+        # self._save(tmp_save_path, epoch, metric)
+        torch.save(model,tmp_save_path)
         if os.path.exists(last_save_path):
             os.unlink(last_save_path)  # required for Windows support.
         os.rename(tmp_save_path, last_save_path)
@@ -73,7 +77,8 @@ class CheckpointSaver:
                 or metric is None or self.cmp(metric, worst_file[1])):
             if len(self.checkpoint_files) >= self.max_history:
                 self._cleanup_checkpoints(1)
-            filename = '-'.join([self.save_prefix, str(epoch)]) + self.extension
+            # filename = '-'.join([self.save_prefix, str(epoch)]) + self.extension
+            filename = '-'.join([self.save_prefix, str(epoch)]) +  self.save_pth
             save_path = os.path.join(self.checkpoint_dir, filename)
             os.link(last_save_path, save_path)
             self.checkpoint_files.append((save_path, metric))

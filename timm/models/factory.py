@@ -71,6 +71,7 @@ def create_model(
         model = create_fn(pretrained=pretrained, pretrained_cfg=pretrained_cfg, **kwargs)
 
     if checkpoint_path:
+        model=triplet_model2(model)
         load_checkpoint(model, checkpoint_path)
 
     return model

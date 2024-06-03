@@ -27,16 +27,33 @@ def fast_collate(batch):
     if isinstance(batch[0][0], tuple):
         # This branch 'deinterleaves' and flattens tuples of input tensors into one tensor ordered by position
         # such that all tuple of position n will end up in a torch.split(tensor, batch_size) in nth position
+        # inner_tuple_size = len(batch[0][0])
+        # flattened_batch_size = batch_size * inner_tuple_size
+        # targets = torch.zeros(flattened_batch_size, dtype=torch.int64)
+        # tensor = torch.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype=torch.uint8)
+
+        # for i in range(batch_size):
+        #     assert len(batch[i][0]) == inner_tuple_size  # all input tensor tuples must be same length
+        #     for j in range(inner_tuple_size):
+        #         targets[i + j * batch_size] = batch[i][1]
+        #         tensor[i + j * batch_size] += torch.from_numpy(batch[i][0][j])
+        # return tensor, targets
+        targets = torch.tensor([b[1] for b in batch], dtype=torch.int64)
+        assert len(targets) == batch_size
         inner_tuple_size = len(batch[0][0])
-        flattened_batch_size = batch_size * inner_tuple_size
-        targets = torch.zeros(flattened_batch_size, dtype=torch.int64)
-        tensor = torch.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype=torch.uint8)
+        for i in range(inner_tuple_size):
+            tensor1 = torch.zeros((batch_size, *batch[0][0][0].shape), dtype=torch.uint8)
+            tensor2 = torch.zeros((batch_size, *batch[0][0][1].shape), dtype=torch.uint8)
+            tensor3 = torch.zeros((batch_size, *batch[0][0][2].shape), dtype=torch.uint8)
+        # tensor = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
         for i in range(batch_size):
-            assert len(batch[i][0]) == inner_tuple_size  # all input tensor tuples must be same length
-            for j in range(inner_tuple_size):
-                targets[i + j * batch_size] = batch[i][1]
-                tensor[i + j * batch_size] += torch.from_numpy(batch[i][0][j])
+            # tensor[i] += torch.from_numpy(batch[i][0])
+            tensor1[i]+=torch.from_numpy(batch[i][0][0])
+            tensor2[i]+=torch.from_numpy(batch[i][0][1])
+            tensor3[i]+=torch.from_numpy(batch[i][0][2])
+        tensor=(tensor1,tensor2,tensor3)
         return tensor, targets
+    
     elif isinstance(batch[0][0], np.ndarray):
         targets = torch.tensor([b[1] for b in batch], dtype=torch.int64)
         assert len(targets) == batch_size
@@ -102,11 +119,16 @@ class PrefetchLoader:
 
         for next_input, next_target in self.loader:
             with torch.cuda.stream(stream):
+                # next_input=[n_input.cuda() for n_input in next_input]
                 next_input = next_input.cuda(non_blocking=True)
                 next_target = next_target.cuda(non_blocking=True)
                 if self.fp16:
+                    
+                    # next_input = [n_input.half().sub_(self.mean).div_(self.std) for n_input in next_input]
                     next_input = next_input.half().sub_(self.mean).div_(self.std)
                 else:
+                    # print(next_input.shape)
+                    # print(self.mean.shape)
                     next_input = next_input.float().sub_(self.mean).div_(self.std)
                 if self.random_erasing is not None:
                     next_input = self.random_erasing(next_input)
@@ -246,6 +268,7 @@ def create_loader(
     loader_args = dict(
         batch_size=batch_size,
         shuffle=not isinstance(dataset, torch.utils.data.IterableDataset) and sampler is None and is_training,
+        # shuffle=True,
         num_workers=num_workers,
         sampler=sampler,
         collate_fn=collate_fn,

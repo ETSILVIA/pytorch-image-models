@@ -1,0 +1,3 @@
+#!/bin/bash
+# python train_v4.py   --model mobilenetv3_large_compression -b 64 --input 3 128 128 --sched step --epochs 200   --decay-epochs 2.4 --decay-rate .973 --opt rmsproptf --opt-eps .001 -j 7 --warmup-lr 1e-6 --weight-decay 1e-5 --drop 0.2 --drop-path 0.2  --aa rand-m9-mstd0.5 --remode pixel --reprob 0.2 --amp --lr 0.0001 --lr-noise 0.42 0.9
+./distributed_train.sh 3  --model mobilenetv3_large_100 -b 256 --sched step --epochs 200 --decay-epochs 2.4 --decay-rate .973 --opt rmsproptf --opt-eps .001 -j 7 --warmup-lr 1e-6 --weight-decay 1e-5 --drop 0.2 --drop-connect 0.2  --aa rand-m9-mstd0.5 --remode pixel --reprob 0.2  --lr .0064 --lr-noise 0.42 0.9

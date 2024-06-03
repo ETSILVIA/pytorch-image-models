@@ -127,10 +127,10 @@ class MobileNetV3(nn.Module):
             head_bias=True, pad_type='', act_layer=None, norm_layer=None, se_layer=None, se_from_exp=True,
             round_chs_fn=round_channels, drop_rate=0., drop_path_rate=0., global_pool='avg'):
         super(MobileNetV3, self).__init__()
-        act_layer = act_layer or nn.ReLU
-        norm_layer = norm_layer or nn.BatchNorm2d
+        act_layer = act_layer or nn.ReLU # 
+        norm_layer = norm_layer or nn.BatchNorm2d 
         norm_act_layer = get_norm_act_layer(norm_layer, act_layer)
-        se_layer = se_layer or SqueezeExcite
+        se_layer = se_layer or SqueezeExcite #
         self.num_classes = num_classes
         self.num_features = num_features
         self.drop_rate = drop_rate
@@ -156,15 +156,17 @@ class MobileNetV3(nn.Module):
         self.conv_head = create_conv2d(num_pooled_chs, self.num_features, 1, padding=pad_type, bias=head_bias)
         self.act2 = act_layer(inplace=True)
         self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
-        self.classifier = Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
-
+        # self.classifier = Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
+        self.glass = Linear(self.num_features, 3) 
+        self.eye = Linear(self.num_features, 3) 
         efficientnet_init_weights(self)
 
     def as_sequential(self):
         layers = [self.conv_stem, self.bn1]
         layers.extend(self.blocks)
         layers.extend([self.global_pool, self.conv_head, self.act2])
-        layers.extend([nn.Flatten(), nn.Dropout(self.drop_rate), self.classifier])
+        # layers.extend([nn.Flatten(), nn.Dropout(self.drop_rate), self.classifier])
+        layers.extend([nn.Flatten(), nn.Dropout(self.drop_rate), self.glass,self.eye])
         return nn.Sequential(*layers)
 
     @torch.jit.ignore
@@ -180,14 +182,17 @@ class MobileNetV3(nn.Module):
 
     @torch.jit.ignore
     def get_classifier(self):
-        return self.classifier
+        # return self.classifier
+        return self.glass,self.eye
 
     def reset_classifier(self, num_classes, global_pool='avg'):
         self.num_classes = num_classes
         # cannot meaningfully change pooling of efficient head after creation
         self.global_pool = SelectAdaptivePool2d(pool_type=global_pool)
         self.flatten = nn.Flatten(1) if global_pool else nn.Identity()  # don't flatten if pooling disabled
-        self.classifier = Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
+        # self.classifier = Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
+        self.glass = Linear(self.num_features, 3) 
+        self.eye = Linear(self.num_features, 3) 
 
     def forward_features(self, x):
         x = self.conv_stem(x)
@@ -208,7 +213,8 @@ class MobileNetV3(nn.Module):
             x = self.flatten(x)
             if self.drop_rate > 0.:
                 x = F.dropout(x, p=self.drop_rate, training=self.training)
-            return self.classifier(x)
+            # return self.classifier(x)
+            return self.glass(x),self.eye(x)
 
     def forward(self, x):
         x = self.forward_features(x)
@@ -413,7 +419,9 @@ def _gen_mobilenet_v3(variant, channel_multiplier=1.0, pretrained=False, **kwarg
                 # stage 6, 7x7 in
                 ['cn_r1_k1_s1_c960'],  # hard-swish
             ]
-    se_layer = partial(SqueezeExcite, gate_layer='hard_sigmoid', force_act_layer=nn.ReLU, rd_round_fn=round_channels)
+    # se_layer = partial(SqueezeExcite, gate_layer='hard_sigmoid', force_act_layer=nn.ReLU, rd_round_fn=round_channels)
+    se_layer = partial(SqueezeExcite, gate_layer='sigmoid', force_act_layer=nn.ReLU, rd_round_fn=round_channels)
+    # se_layer = partial(SqueezeExcite, gate_layer='hard_swish', force_act_layer=nn.ReLU, rd_round_fn=round_channels)
     model_kwargs = dict(
         block_args=decode_arch_def(arch_def),
         num_features=num_features,

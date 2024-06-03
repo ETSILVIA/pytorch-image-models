@@ -66,7 +66,8 @@ def transforms_imagenet_train(
      * a portion of the data through the secondary transform
      * normalizes and converts the branches above with the third, final transform
     """
-    scale = tuple(scale or (0.08, 1.0))  # default imagenet scale range
+    # scale = tuple(scale or (0.08, 1.0))  # default imagenet scale range
+    scale = tuple(scale or (1.0, 1.0))  # default imagenet scale range
     ratio = tuple(ratio or (3./4., 4./3.))  # default imagenet ratio range
     primary_tfl = [
         RandomResizedCropAndInterpolation(img_size, scale=scale, ratio=ratio, interpolation=interpolation)]
@@ -104,7 +105,8 @@ def transforms_imagenet_train(
         else:
             # if it's a scalar, duplicate for brightness, contrast, and saturation, no hue
             color_jitter = (float(color_jitter),) * 3
-        secondary_tfl += [transforms.ColorJitter(*color_jitter)]
+        secondary_tfl += [transforms.ColorJitter(brightness=0.8, contrast=0.9, saturation=0.8, hue=0.5)]
+    # secondary_tfl += [transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 5.0))]
 
     final_tfl = []
     if use_prefetcher:
@@ -113,6 +115,7 @@ def transforms_imagenet_train(
     else:
         final_tfl += [
             transforms.ToTensor(),
+            # transforms.Grayscale(num_output_channels=3),
             transforms.Normalize(
                 mean=torch.tensor(mean),
                 std=torch.tensor(std))
@@ -128,7 +131,7 @@ def transforms_imagenet_train(
 
 
 def transforms_imagenet_eval(
-        img_size=224,
+        img_size=128,
         crop_pct=None,
         interpolation='bilinear',
         use_prefetcher=False,
@@ -148,6 +151,7 @@ def transforms_imagenet_eval(
 
     tfl = [
         transforms.Resize(scale_size, interpolation=str_to_interp_mode(interpolation)),
+        # transforms.Grayscale(num_output_channels=3),
         transforms.CenterCrop(img_size),
     ]
     if use_prefetcher:
